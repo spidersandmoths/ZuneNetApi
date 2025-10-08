@@ -2,11 +2,15 @@
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json.Linq;
 using System;
+using System.IO;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading.Tasks;
 using Zune.DB;
 using Zune.Net.Helpers;
+using ImageSharp = SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp;
 
 namespace Zune.Net.Catalog.Image.Controllers
 {
@@ -66,14 +70,28 @@ namespace Zune.Net.Catalog.Image.Controllers
                 imageUrl = $"https://coverartarchive.org/release/{id}/front-{width}";
             }
 
-			if (imageUrl == null)
-				return StatusCode(404);
+            if (imageUrl == null)
+                return StatusCode(404);
 
-			// Request the image from the API and forward it to the Zune software
-			var imgResponse = await imageUrl.GetAsync();
-			if (imgResponse.StatusCode != 200)
-				return StatusCode(imgResponse.StatusCode);
-			return File(await imgResponse.GetStreamAsync(), "image/jpeg");
+            // Request the image data from the API and determine it exists
+            var imgResponse = await imageUrl.GetAsync();
+            if (imgResponse.StatusCode != 200)
+                return StatusCode(imgResponse.StatusCode);
+
+            // Crop it down to the requested width while preserving aspect ratio
+            var outputStream = new MemoryStream();
+            if (Request.Query["width"] != (string)null)
+            {
+                using (ImageSharp::Image image = ImageSharp::Image.Load(await imgResponse.GetStreamAsync()))
+                {
+                    image.Mutate(x => x.Resize(int.Parse(Request.Query["width"]), 0));
+                    image.SaveAsJpeg(outputStream);
+                }
+
+                return File(outputStream.ToArray(), "image/jpeg");
+            }
+            
+            return File(await imgResponse.GetStreamAsync(), "image/jpeg");
         }
 
         [HttpGet, Route("music/artist/{id}/{type}")]

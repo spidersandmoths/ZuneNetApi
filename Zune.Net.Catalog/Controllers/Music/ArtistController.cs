@@ -30,14 +30,18 @@ namespace Zune.Net.Catalog.Controllers.Music
         [HttpGet, Route("{mbid}")]
         public async Task<ActionResult<Artist>> Details(Guid mbid)
         {
+            var (version, culture) = this.GetCurrentVersionAndCulture();
             (var dc_artist, var mb_artist) = await Discogs.GetDCArtistByMBID(mbid);
             Artist artist = MusicBrainz.MBArtistToArtist(mb_artist);
-            artist.Images = new() { new() { Id = mbid } };
+            
+            artist.Images = new() { new() { Id = new Guid(dc_artist.Value<int>("id"), 0, 0, new byte[] { 0, 0, 0, 0, 0, 0, 0, 0 })   } };
 
             if (dc_artist != null)
             {
+                artist.BiographyLink = $"/v{version}/{culture}{Request.Path.Value}biography";
                 artist.Biography = dc_artist.Value<string>("profile");
-                artist.Links.Add(new(Request.Path.Value + "biography", relation: "zune://artist/biography"));
+                artist.Links.Add(new($"/v{version}/{culture}{Request.Path.Value}", relation: "self"));
+                artist.Links.Add(new($"/v{version}/{culture}{Request.Path.Value}biography", relation: "zune://artist/biography"));
 
                 var dc_artist_image = dc_artist.Value<JArray>("images")?.FirstOrDefault(i => i.Value<string>("type") == "primary");
                 if (dc_artist_image != null)
@@ -47,7 +51,7 @@ namespace Zune.Net.Catalog.Controllers.Music
 
                     artist.BackgroundImage = new()
                     {
-                        Id = artistImageEntry.Id
+                        Id = new Guid(dc_artist.Value<int>("id"), 0, 0, new byte[] { 0, 0, 0, 0, 0, 0, 0, 0 })
                     };
                 }
             }
@@ -193,7 +197,7 @@ namespace Zune.Net.Catalog.Controllers.Music
             var images = dc_artist.Value<JToken>("images");
             if (images != null)
             {
-                feed.Entries = images.Select((j, idx) =>
+                feed.Entries = images.Select((j, idx) => 
                 {
                     // Encode DCID and image index in ID
                     Guid imgId = new(dcid, (short)idx, 0, zero);

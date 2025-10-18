@@ -79,18 +79,27 @@ namespace Zune.Net.Catalog.Image.Controllers
                 return StatusCode(imgResponse.StatusCode);
 
             // Crop it down to the requested width while preserving aspect ratio
-            var outputStream = new MemoryStream();
-            if (Request.Query["width"] != (string)null)
+            if (Request.Query["width"] != (string)null || Request.Query["height"] != (string)null) // Check for width argument
             {
+                var resizeWidth = 0;
+                var resizeHeight = 0;
+                
+                if (Request.Query["width"] != (string)null)
+                    resizeWidth = int.Parse(Request.Query["width"]);
+                if (Request.Query["height"] != (string)null)
+                    resizeHeight  = int.Parse(Request.Query["height"]);
+
+                var outputStream = new MemoryStream();
+
                 using (ImageSharp::Image image = ImageSharp::Image.Load(await imgResponse.GetStreamAsync()))
                 {
-                    image.Mutate(x => x.Resize(int.Parse(Request.Query["width"]), 0));
+                    image.Mutate(x => x.Resize(resizeWidth, resizeHeight));
                     image.SaveAsJpeg(outputStream);
                 }
 
                 return File(outputStream.ToArray(), "image/jpeg");
             }
-            
+
             return File(await imgResponse.GetStreamAsync(), "image/jpeg");
         }
 

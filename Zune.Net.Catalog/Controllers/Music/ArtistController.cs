@@ -51,7 +51,7 @@ namespace Zune.Net.Catalog.Controllers.Music
 
                     artist.BackgroundImage = new()
                     {
-                        Id = new Guid(dc_artist.Value<int>("id"), 0, 0, new byte[] { 0, 0, 0, 0, 0, 0, 0, 0 })
+                        Id = artistImageEntry.Id
                     };
                 }
             }
@@ -230,3 +230,4 @@ namespace Zune.Net.Catalog.Controllers.Music
         }
     }
 }
+
